@@ -1,0 +1,22 @@
+# インスタ・Threads のキー：手で動かすと確認、毎週月曜 4:17（日本時間）に自動で更新（60日で切れるため）
+name: tokens
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: check（確かめる）か refresh（更新する）
+        default: check
+  schedule:
+    - cron: "17 4 * * 1"
+      timezone: "Asia/Tokyo"
+jobs:
+  tokens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: run
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: python scripts/tokens.py ${{ github.event_name == 'schedule' && 'refresh' || inputs.mode }}
