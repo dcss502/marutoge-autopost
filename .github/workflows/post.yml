@@ -1,0 +1,47 @@
+# 時刻になった投稿を出す。5分ごとに起きて確かめる（毎時0分は混むので2分ずらす）。
+# 手で動かす時は、ID を入れると その1本だけを今すぐ出す（テスト投稿用）
+name: post
+on:
+  schedule:
+    - cron: "2-59/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 今すぐ出す投稿のID（例 20261020-0730-P32）。空なら時刻になったものだけ
+        default: ""
+      platform:
+        description: instagram / threads / 空なら両方
+        default: ""
+      dry_run:
+        description: true なら表示だけ
+        default: "false"
+concurrency:
+  group: post
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: post
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+        run: |
+          args=""
+          if [ -n "${{ inputs.only }}" ]; then args="--only ${{ inputs.only }} --now"; fi
+          if [ -n "${{ inputs.platform }}" ]; then args="$args --platform ${{ inputs.platform }}"; fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then args="$args --dry-run"; fi
+          python scripts/post.py $args
+      - name: save state
+        if: always()
+        run: |
+          if [ -n "$(git status --porcelain state)" ]; then
+            git config user.name "marutoge-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state
+            git commit -m "投稿の記録"
+            git pull --rebase -q && git push -q
+          fi
